@@ -26,6 +26,7 @@ default_origins = [
     "http://localhost:3001",
     # Production add-in / web UI origin(s)
     "https://addin.cellium.dev",
+    "https://cellium.dev",
 ]
 
 origins_env = os.getenv("CORS_ALLOW_ORIGINS")
