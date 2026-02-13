@@ -21,9 +21,23 @@ app = FastAPI(
 )
 
 # CORS middleware
+default_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    # Production add-in / web UI origin(s)
+    "https://addin.cellium.dev",
+]
+
+origins_env = os.getenv("CORS_ALLOW_ORIGINS")
+allow_origins = (
+    [o.strip() for o in origins_env.split(",") if o.strip()]
+    if origins_env
+    else default_origins
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
