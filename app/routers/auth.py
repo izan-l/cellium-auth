@@ -103,3 +103,13 @@ async def validate_token(request: TokenValidationRequest, db: Session = Depends(
         return TokenValidationResponse(valid=True, user=user)
     else:
         return TokenValidationResponse(valid=False, error="Invalid or expired token")
+
+@router.post("/validate-jwt", response_model=TokenValidationResponse)
+async def validate_jwt_token(request: TokenValidationRequest, db: Session = Depends(get_db)):
+    """Validate a JWT token and return user information."""
+    user = TokenService.validate_jwt_and_get_user(db, request.token)
+    
+    if user:
+        return TokenValidationResponse(valid=True, user=user)
+    else:
+        return TokenValidationResponse(valid=False, error="Invalid or expired JWT token")

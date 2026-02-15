@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.models import User, Token
 from app.schemas.schemas import UserCreate, TokenCreate
-from app.core.security import get_password_hash, verify_password
+from app.core.security import get_password_hash, verify_password, verify_token
 from datetime import datetime
 from typing import Optional, List
 
@@ -92,3 +92,18 @@ class TokenService:
         db.commit()
         
         return token.owner
+
+    @staticmethod
+    def validate_jwt_and_get_user(db: Session, jwt_token: str) -> Optional[User]:
+        """Validate JWT token and return associated user."""
+        payload = verify_token(jwt_token)
+        
+        if payload is None:
+            return None
+            
+        username = payload.get("sub")
+        if username is None:
+            return None
+            
+        user = UserService.get_user_by_username(db, username)
+        return user
