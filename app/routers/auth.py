@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+import logging
 from app.core.database import get_db
 from app.core.security import create_access_token, verify_token
 from app.schemas.schemas import (
@@ -11,6 +12,9 @@ from app.services.auth_service import UserService, TokenService
 
 router = APIRouter()
 security = HTTPBearer()
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     """Get current user from JWT token."""
@@ -129,19 +133,29 @@ async def create_test_token(db: Session = Depends(get_db)):
 @router.post("/validate", response_model=TokenValidationResponse)
 async def validate_token(request: TokenValidationRequest, db: Session = Depends(get_db)):
     """Validate a token and return user information."""
-    user = TokenService.validate_token_and_get_user(db, request.token)
-    
-    if user:
-        return TokenValidationResponse(valid=True, user=user)
-    else:
-        return TokenValidationResponse(valid=False, error="Invalid or expired token")
+    try:
+        user = TokenService.validate_token_and_get_user(db, request.token)
+        
+        if user:
+            return TokenValidationResponse(valid=True, user=user)
+        else:
+            return TokenValidationResponse(valid=False, error="Invalid or expired token")
+    except Exception as e:
+        # Log the error for debugging
+        logger.error(f"Token validation error: {e}")
+        return TokenValidationResponse(valid=False, error="Token validation failed")
 
 @router.post("/validate-jwt", response_model=TokenValidationResponse)
 async def validate_jwt_token(request: TokenValidationRequest, db: Session = Depends(get_db)):
     """Validate a JWT token and return user information."""
-    user = TokenService.validate_jwt_and_get_user(db, request.token)
-    
-    if user:
-        return TokenValidationResponse(valid=True, user=user)
-    else:
-        return TokenValidationResponse(valid=False, error="Invalid or expired JWT token")
+    try:
+        user = TokenService.validate_jwt_and_get_user(db, request.token)
+        
+        if user:
+            return TokenValidationResponse(valid=True, user=user)
+        else:
+            return TokenValidationResponse(valid=False, error="Invalid or expired JWT token")
+    except Exception as e:
+        # Log the error for debugging
+        logger.error(f"JWT token validation error: {e}")
+        return TokenValidationResponse(valid=False, error="Token validation failed")
