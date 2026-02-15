@@ -94,6 +94,38 @@ async def revoke_token(
         )
     return {"message": "Token revoked successfully"}
 
+@router.get("/test-token")
+async def create_test_token(db: Session = Depends(get_db)):
+    """Create a test token for development/testing purposes."""
+    # Find or create test user
+    test_user = UserService.get_user_by_username(db, "admin")
+    if not test_user:
+        return {"error": "Admin user not found. Please ensure admin user exists."}
+    
+    # Create a test token
+    from app.schemas.schemas import TokenCreate
+    from datetime import datetime, timedelta
+    
+    token_data = TokenCreate(
+        name="Test Token for MCP",
+        description="Auto-generated test token for MCP development",
+        expires_at=datetime.utcnow() + timedelta(hours=24)
+    )
+    
+    test_token = TokenService.create_token(db, token_data, test_user.id)
+    
+    return {
+        "token": test_token.token,
+        "name": test_token.name,
+        "user": test_user.username,
+        "expires_at": test_token.expires_at,
+        "format_info": {
+            "expected_format": "user:username:randomhash",
+            "actual_format": test_token.token,
+            "format_valid": test_token.token.startswith("user:")
+        }
+    }
+
 @router.post("/validate", response_model=TokenValidationResponse)
 async def validate_token(request: TokenValidationRequest, db: Session = Depends(get_db)):
     """Validate a token and return user information."""
