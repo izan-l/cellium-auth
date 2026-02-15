@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 import logging
 from app.core.database import get_db
 from app.core.security import create_access_token, verify_token
+from app.models import models
 from app.schemas.schemas import (
     LoginRequest, LoginResponse, TokenCreate, Token, 
     TokenValidationRequest, TokenValidationResponse
@@ -159,3 +160,34 @@ async def validate_jwt_token(request: TokenValidationRequest, db: Session = Depe
         # Log the error for debugging
         logger.error(f"JWT token validation error: {e}")
         return TokenValidationResponse(valid=False, error="Token validation failed")
+
+@router.get("/debug/tokens")
+async def debug_tokens(db: Session = Depends(get_db)):
+    """Debug endpoint to show token database state - REMOVE IN PRODUCTION"""
+    try:
+        tokens = db.query(models.Token).all()
+        token_info = []
+        for token in tokens:
+            # Calculate if token is expired
+            from datetime import datetime
+            is_expired = token.expires_at is not None and token.expires_at < datetime.utcnow()
+            
+            token_info.append({
+                "id": token.id,
+                "token_prefix": token.token[:15] + "..." if len(token.token) > 15 else token.token,
+                "full_token": token.token,  # Include for debugging
+                "created_at": str(token.created_at),
+                "expires_at": str(token.expires_at) if token.expires_at else None,
+                "owner_id": token.owner.id if token.owner else None,
+                "owner_username": token.owner.username if token.owner else None,
+                "is_expired": is_expired,
+                "is_active": token.is_active,
+                "last_used_at": str(token.last_used_at) if token.last_used_at else None
+            })
+        
+        return {
+            "total_tokens": len(tokens),
+            "tokens": token_info
+        }
+    except Exception as e:
+        return {"error": str(e)}
