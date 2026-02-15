@@ -175,16 +175,8 @@ async def debug_tokens(db: Session = Depends(get_db)):
             
             try:
                 if token.expires_at is not None:
-                    # Check if expires_at is timezone-aware
-                    if token.expires_at.tzinfo is None:
-                        # Token has timezone-naive datetime, make it timezone-aware (assume UTC)
-                        expires_at_utc = token.expires_at.replace(tzinfo=timezone.utc)
-                        is_expired = expires_at_utc < datetime.now(timezone.utc)
-                        expiry_debug = f"timezone-naive converted to UTC: {expires_at_utc}"
-                    else:
-                        # Token is already timezone-aware
-                        is_expired = token.expires_at < datetime.now(timezone.utc)
-                        expiry_debug = f"timezone-aware: {token.expires_at}"
+                    is_expired = token.expires_at < datetime.now(timezone.utc)
+                    expiry_debug = f"expires at: {token.expires_at}"
                 else:
                     is_expired = False
                     expiry_debug = "no expiry set"

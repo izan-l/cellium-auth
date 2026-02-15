@@ -100,18 +100,9 @@ class TokenService:
             return None
         
         # Check expiration
-        if token.expires_at:
-            # Handle timezone-aware vs timezone-naive comparison
-            if token.expires_at.tzinfo is None:
-                # Token has timezone-naive datetime, make it timezone-aware (assume UTC)
-                expires_at_utc = token.expires_at.replace(tzinfo=timezone.utc)
-            else:
-                # Token is already timezone-aware
-                expires_at_utc = token.expires_at
-            
-            if expires_at_utc < datetime.now(timezone.utc):
-                logger.warning(f"Token expired: {token_string[:15]}...")
-                return None
+        if token.expires_at and token.expires_at < datetime.now(timezone.utc):
+            logger.warning(f"Token expired: {token_string[:15]}...")
+            return None
         
         # Update last used
         token.last_used_at = datetime.now(timezone.utc)
