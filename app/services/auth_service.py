@@ -4,6 +4,9 @@ from app.schemas.schemas import UserCreate, TokenCreate
 from app.core.security import get_password_hash, verify_password, verify_token
 from datetime import datetime
 from typing import Optional, List
+import logging
+
+logger = logging.getLogger(__name__)
 
 class UserService:
     @staticmethod
@@ -54,12 +57,16 @@ class TokenService:
         db.add(db_token)
         db.commit()
         db.refresh(db_token)
+        logger.info(f"Created token: {db_token.token[:15]}... for user_id: {user_id}")
         return db_token
     
     @staticmethod
     def get_token_by_string(db: Session, token_string: str) -> Optional[Token]:
         """Get token by token string."""
-        return db.query(Token).filter(Token.token == token_string, Token.is_active == True).first()
+        logger.info(f"Searching for token: {token_string[:15]}...")
+        result = db.query(Token).filter(Token.token == token_string, Token.is_active == True).first()
+        logger.info(f"Token found: {result is not None}")
+        return result
     
     @staticmethod
     def get_user_tokens(db: Session, user_id: int) -> List[Token]:
@@ -79,18 +86,29 @@ class TokenService:
     @staticmethod
     def validate_token_and_get_user(db: Session, token_string: str) -> Optional[User]:
         """Validate token and return associated user."""
+        logger.info(f"Validating token: {token_string[:15]}...")
+        
+        # Log all tokens in database for debugging
+        all_tokens = db.query(Token).filter(Token.is_active == True).all()
+        logger.info(f"Total active tokens in database: {len(all_tokens)}")
+        for token in all_tokens:
+            logger.info(f"DB Token: {token.token[:15]}... (user_id: {token.user_id})")
+        
         token = TokenService.get_token_by_string(db, token_string)
         if not token:
+            logger.warning(f"Token not found: {token_string[:15]}...")
             return None
         
         # Check expiration
         if token.expires_at and token.expires_at < datetime.utcnow():
+            logger.warning(f"Token expired: {token_string[:15]}...")
             return None
         
         # Update last used
         token.last_used_at = datetime.utcnow()
         db.commit()
         
+        logger.info(f"Token validation successful for user_id: {token.user_id}")
         return token.owner
 
     @staticmethod
