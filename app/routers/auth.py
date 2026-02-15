@@ -109,12 +109,12 @@ async def create_test_token(db: Session = Depends(get_db)):
     
     # Create a test token
     from app.schemas.schemas import TokenCreate
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     
     token_data = TokenCreate(
         name="Test Token for MCP",
         description="Auto-generated test token for MCP development",
-        expires_at=datetime.utcnow() + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
     )
     
     test_token = TokenService.create_token(db, token_data, test_user.id)
@@ -168,9 +168,29 @@ async def debug_tokens(db: Session = Depends(get_db)):
         tokens = db.query(models.Token).all()
         token_info = []
         for token in tokens:
-            # Calculate if token is expired
-            from datetime import datetime
-            is_expired = token.expires_at is not None and token.expires_at < datetime.utcnow()
+            # Calculate if token is expired with better error handling
+            from datetime import datetime, timezone
+            is_expired = None
+            expiry_debug = None
+            
+            try:
+                if token.expires_at is not None:
+                    # Check if expires_at is timezone-aware
+                    if token.expires_at.tzinfo is None:
+                        # Token has timezone-naive datetime, make it timezone-aware (assume UTC)
+                        expires_at_utc = token.expires_at.replace(tzinfo=timezone.utc)
+                        is_expired = expires_at_utc < datetime.now(timezone.utc)
+                        expiry_debug = f"timezone-naive converted to UTC: {expires_at_utc}"
+                    else:
+                        # Token is already timezone-aware
+                        is_expired = token.expires_at < datetime.now(timezone.utc)
+                        expiry_debug = f"timezone-aware: {token.expires_at}"
+                else:
+                    is_expired = False
+                    expiry_debug = "no expiry set"
+            except Exception as exp_err:
+                is_expired = None
+                expiry_debug = f"Error comparing expiry: {exp_err}"
             
             token_info.append({
                 "id": token.id,
@@ -178,6 +198,8 @@ async def debug_tokens(db: Session = Depends(get_db)):
                 "full_token": token.token,  # Include for debugging
                 "created_at": str(token.created_at),
                 "expires_at": str(token.expires_at) if token.expires_at else None,
+                "expires_at_tzinfo": str(token.expires_at.tzinfo) if token.expires_at else None,
+                "expiry_debug": expiry_debug,
                 "owner_id": token.owner.id if token.owner else None,
                 "owner_username": token.owner.username if token.owner else None,
                 "is_expired": is_expired,
